@@ -182,6 +182,7 @@ public class MainActivity extends Activity implements android.view.View.OnClickL
         	itemID.setEnabled(false);
         	VID.setEnabled(false);
         	voteNumber.setEnabled(false);
+        	
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
