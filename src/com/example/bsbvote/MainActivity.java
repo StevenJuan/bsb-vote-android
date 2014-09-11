@@ -16,19 +16,26 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.conn.params.ConnRoutePNames;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.client.entity.GzipDecompressingEntity;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.example.ff.R;
+import com.example.bsbvote.R;
 
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.net.NetworkInfo.State;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.StrictMode;
 import android.preference.Preference;
+import android.provider.Settings;
 import android.R.integer;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -131,6 +138,10 @@ public class MainActivity extends Activity implements android.view.View.OnClickL
         public void run()
         {
         	new AlertDialog.Builder(mainactivity).setTitle("提示" ).setMessage("投票完成" ).setPositiveButton("确定" ,null ).show();
+        	startBtn.setEnabled(true);
+        	itemID.setEnabled(true);
+        	VID.setEnabled(true);
+        	voteNumber.setEnabled(true);
         }
     };
     
@@ -138,24 +149,48 @@ public class MainActivity extends Activity implements android.view.View.OnClickL
 	@Override
 	public void onClick(View id) {
 		// TODO Auto-generated method stubs
-		
+		if (!isNetworkAvailable()) {
+			// new AlertDialog.Builder(mainactivity).setTitle("提示"
+			// ).setMessage("请先连接网络" ).setPositiveButton("确定" ,null ).show();
+			new AlertDialog.Builder(mainactivity)
+					.setTitle("提示")
+					.setIcon(android.R.drawable.ic_dialog_info)
+					.setMessage("未连接网络，现在设置网络连接？")
+					.setPositiveButton("确定",
+							new DialogInterface.OnClickListener() {
+								public void onClick(DialogInterface dialog,
+										int which) {
+									startActivity(new Intent(
+											Settings.ACTION_SETTINGS));
+								}
+							}).setNegativeButton("取消", null).show();
+
+			return;
+		}
+
 		switch (id.getId()) {
 		case R.id.startBtn:// 开始按钮
+			validVote = 0;
+			regUser = 0;
 			SharedPreferences sharedata=getSharedPreferences("vote_set", 0);
 			SharedPreferences.Editor editor = sharedata.edit();
 			editor.putString("item_id", itemID.getText().toString());
 			editor.putString("v_id", VID.getText().toString());
 			editor.putString("vote_number", voteNumber.getText().toString());
 			editor.commit();
+			startBtn.setEnabled(false);
+        	itemID.setEnabled(false);
+        	VID.setEnabled(false);
+        	voteNumber.setEnabled(false);
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
 					int j = Integer.parseInt(voteNumber.getText().toString());
 					int k=0;
 					for (i = 1; i <= j; i++) {
-						if(k==18){
+						if(k==15){
 							try {
-								Thread.sleep(70000);
+								Thread.sleep(60000*3);
 							} catch (InterruptedException e) {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
@@ -174,7 +209,7 @@ public class MainActivity extends Activity implements android.view.View.OnClickL
 							handler.post(update_thread);
 							k++;
 							try {
-								Thread.sleep(2000);
+								Thread.sleep(1000);
 							} catch (InterruptedException e) {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
@@ -219,7 +254,7 @@ public class MainActivity extends Activity implements android.view.View.OnClickL
         httppost.setHeader("User-Agent", "Mozilla/5.0 (iPhone; U; CPU iPhone OS 3_0 like Mac OS X; en-us) AppleWebKit/528.18 (KHTML, like Gecko) Version/4.0 Mobile/7A341 Safari/528.16");
         httppost.setHeader("Accept", "application/json");
         httppost.setHeader("Accept-Language", "zh-cn,zh;q=0.8,en-us;q=0.5,en;q=0.3");
-        //httppost.setHeader("Accept-Encoding", "gzip, deflate");
+        httppost.setHeader("Accept-Encoding", "gzip, deflate");
         httppost.setHeader("X-Requested-With", "XMLHttpRequest");
         httppost.setHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
         httppost.setHeader("Referer", "http://m.passport.cntv.cn/html/reg.html?rurl=http%3A%2F%2Fqr.cntv.cn%2Fbsb");
@@ -238,6 +273,7 @@ public class MainActivity extends Activity implements android.view.View.OnClickL
 //        }
 //        System.out.println("5");
         //获取响应信息
+        response.setEntity(new GzipDecompressingEntity(response.getEntity()));
         HttpEntity entity = response.getEntity();
         System.out.println("----------------------------------------");
         System.out.println(response.getStatusLine());
@@ -245,21 +281,30 @@ public class MainActivity extends Activity implements android.view.View.OnClickL
             System.out.println("Response content length: " + entity.getContentLength());
         }
 //         显示结果   
-        BufferedReader reader = new BufferedReader(new InputStreamReader(entity.getContent(), "UTF-8"));
+        InputStreamReader rr = new InputStreamReader(entity.getContent(), "UTF-8");
+        BufferedReader reader = new BufferedReader(rr);
         StringBuilder builder = new StringBuilder();
         System.out.println("返回信息-----------------------------------------");
         for (String line = reader.readLine(); line != null; line = reader 
                 .readLine()) { 
             builder.append(line); 
-        } 
+        }
+        rr.close();
         Log.i("cat", ">>>>>>" + builder.toString()); 
         
         try {
 			JSONObject jsonObject = new JSONObject(builder.toString());
 			System.out.println("+++++++++++++++++++++\n"+jsonObject.getString("error"));
-			if(jsonObject.getInt("error")==0){
+			if(jsonObject.getInt("error")!=0){
+				try {
+					Thread.sleep(60000*3);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+			}else{
 				regUser++;
-				System.out.println("--------"+regUser);
 			}
 			System.out.println("--------"+jsonObject.getString("msg"));
 			
@@ -286,7 +331,7 @@ public class MainActivity extends Activity implements android.view.View.OnClickL
         httpget.setHeader("User-Agent", "Mozilla/5.0 (iPhone; U; CPU iPhone OS 3_0 like Mac OS X; en-us) AppleWebKit/528.18 (KHTML, like Gecko) Version/4.0 Mobile/7A341 Safari/528.16");
         httpget.setHeader("Accept", "application/json, text/javascript, */*; q=0.01");
         httpget.setHeader("Accept-Language", "zh-cn,zh;q=0.8,en-us;q=0.5,en;q=0.3");
-        //httpget.setHeader("Accept-Encoding", "gzip, deflate");
+        httpget.setHeader("Accept-Encoding", "gzip, deflate");
         httpget.setHeader("DNT", "1");
         httpget.setHeader("Referer", "http://qr.cntv.cn/bsb");
         httpget.setHeader("Connection", "keep-alive");
@@ -301,6 +346,7 @@ public class MainActivity extends Activity implements android.view.View.OnClickL
 //        }
 
         // 执行   
+        response.setEntity(new GzipDecompressingEntity(response.getEntity()));
         HttpEntity entity = response.getEntity();
 //        System.out.println("----------------------------------------");
 //        System.out.println(response.getStatusLine());
@@ -308,20 +354,31 @@ public class MainActivity extends Activity implements android.view.View.OnClickL
 //            System.out.println("Response content length: " + entity.getContentLength());
 //        }
      // 显示结果   
-        BufferedReader reader = new BufferedReader(new InputStreamReader(entity.getContent(), "UTF-8"));
+        InputStreamReader rr = new InputStreamReader(entity.getContent(), "UTF-8");
+        BufferedReader reader = new BufferedReader(rr);
         StringBuilder builder = new StringBuilder();
         System.out.println("返回信息-----------------------------------------");
         for (String line = reader.readLine(); line != null; line = reader 
                 .readLine()) { 
             builder.append(line); 
-        } 
+        }
+        rr.close();
         Log.i("cat", ">>>>>>" + builder.toString()); 
         
         try {
 			JSONObject jsonObject = new JSONObject(builder.toString());
 			System.out.println("+++++++++++++++++++++\n"+jsonObject.getString("error"));
 			if(jsonObject.getInt("error")==0){
-				validVote++;
+				if("成功参与投票，本轮投票将获得1积分".equals(jsonObject.getString("msg"))){
+					validVote++;
+				}else {
+					try {
+						Thread.sleep(60000*3);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
 			}
 			System.out.println("--------"+jsonObject.getString("msg"));
 		} catch (JSONException e) {
@@ -350,4 +407,34 @@ public class MainActivity extends Activity implements android.view.View.OnClickL
         }
         return super.onKeyDown(keyCode, event);
     }
+    
+	public boolean isNetworkAvailable() {
+		ConnectivityManager connectivity = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+		if (connectivity == null) {
+		} else {
+			NetworkInfo[] info = connectivity.getAllNetworkInfo();
+			if (info != null) {
+				for (int i = 0; i < info.length; i++) {
+					if (info[i].getState() == NetworkInfo.State.CONNECTED) {
+						State state = connectivity.getNetworkInfo(
+								ConnectivityManager.TYPE_MOBILE).getState();
+						if (State.CONNECTED == state) {
+							Log.i("通知", "GPRS网络已连接");
+							Toast.makeText(getApplicationContext(),
+									"GPRS网络已连接", Toast.LENGTH_SHORT).show();
+						}
+						state = connectivity.getNetworkInfo(
+								ConnectivityManager.TYPE_WIFI).getState();
+						if (State.CONNECTED == state) {
+							Log.i("通知", "WIFI网络已连接");
+							Toast.makeText(getApplicationContext(),
+									"WIFI网络已连接", Toast.LENGTH_SHORT).show();
+						}
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
 }
