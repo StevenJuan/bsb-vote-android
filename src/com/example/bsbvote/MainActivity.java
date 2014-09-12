@@ -158,6 +158,7 @@ public class MainActivity extends Activity implements android.view.View.OnClickL
         	votedCount = 0;
         	validVote = 0;
         	regUser = 0;
+        	this.startService(new Intent(this, voteService.class));
         	doVote.Vote(Integer.parseInt(voteNumber.getText().toString()),
         			itemID.getText().toString(),
         			VID.getText().toString());
@@ -172,7 +173,7 @@ public class MainActivity extends Activity implements android.view.View.OnClickL
         if(keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_DOWN){   
             if((System.currentTimeMillis()-exitTime) > 2000){  
                 Toast.makeText(getApplicationContext(), "再按一次退出程序", Toast.LENGTH_SHORT).show();                                
-                exitTime = System.currentTimeMillis();   
+                exitTime = System.currentTimeMillis();
             } else {
                 finish();
                 System.exit(0);
@@ -211,4 +212,9 @@ public class MainActivity extends Activity implements android.view.View.OnClickL
 		}
 		return false;
 	}
+	
+	 protected void onDestroy() {
+	        super.onDestroy();
+	        this.stopService(new Intent(this, voteService.class));
+	    }
 }
